@@ -1,0 +1,383 @@
+{%- comment -%}
+----------------------------------------------------------------------------------------------------------------------
+BUY BUTTONS
+----------------------------------------------------------------------------------------------------------------------
+
+This component is used to show the buy buttons
+
+********************************************
+Supported variables
+********************************************
+
+* product: the product from which to show the buttons
+* show_payment_button: if we show or not the dynamic checkout button
+* show_gift_card_recipient: for gift card products, an optional message/email to be sent to the recipient
+* button_size: the size of the button (default to xl if none is passed)
+* atc_button_background: the background of the ATC button
+* atc_button_text_color: the text color of the ATC button
+* payment_button_background: the custom dynamic checkout button background
+* payment_button_text_color: the custom dynamic checkout button text color
+* form_id: if specified, define the form ID linked to this input
+{%- endcomment -%}
+
+{%- assign variant_picker_block = section.blocks | where: 'type', 'variant_picker' | first -%}
+
+{%- assign recipient_feature_active = false -%}
+
+{%- if product.gift_card? and show_gift_card_recipient -%}
+  {%- assign recipient_feature_active = true -%}
+  {%- assign show_payment_button = false -%}
+{%- endif -%}
+
+{%- form 'product', product, is: 'product-form', id: form_id -%}
+
+  <div class="dual-upload-container">
+    {% if section.settings.show_upload_1 %}
+      <div class="upload-form">
+        <h3 class="form-title">{{ section.settings.upload_label_1 }}</h3>
+        <label for="image-upload-1" class="upload-button">
+          <span class="button-text">Choose Images</span>
+          <input type="file" name="properties[Photo 1]" id="image-upload-1" accept="image/*" multiple style="display: none;">
+        </label>
+        
+        <div class="upload-status">
+          <div class="checking-message" style="display: none;">
+            <div class="spinner"></div>
+            <span class="status-text"></span>
+          </div>
+          
+          <div class="preview-grid" id="preview-grid-1" style="display: none;"></div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if section.settings.show_upload_2 %}
+      <div class="upload-form">
+        <h3 class="form-title">{{ section.settings.upload_label_2 }}</h3>
+        <label for="image-upload-2" class="upload-button">
+          <span class="button-text">Choose Images</span>
+          <input type="file" name="properties[Photo 2]" id="image-upload-2" accept="image/*" multiple style="display: none;">
+        </label>
+        
+        <div class="upload-status">
+          <div class="checking-message" style="display: none;">
+            <div class="spinner"></div>
+            <span class="status-text"></span>
+          </div>
+          
+          <div class="preview-grid" id="preview-grid-2" style="display: none;"></div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+
+  <input type="hidden" {% if variant_picker_block != blank %}disabled{% endif %} name="id" value="{{ product.selected_or_first_available_variant.id }}">
+
+  {%- assign button_disabled = false -%}
+  {%- assign button_size = button_size | default: 'xl' -%}
+
+  {%- if product.selected_or_first_available_variant == nil -%}
+    {%- capture button_content -%}{{ 'product.general.unavailable_button' | t }}{%- endcapture -%}
+    {%- assign button_disabled = true -%}
+  {%- elsif product.selected_or_first_available_variant.available -%}
+    {%- if product.template_suffix contains 'pre-order' -%}
+      {%- capture button_content -%}{{ 'product.general.pre_order_button' | t }}{%- endcapture -%}
+    {%- else -%}
+      {%- capture button_content -%}{{ 'product.general.add_to_cart_button' | t }}{%- endcapture -%}
+    {%- endif -%}
+  {%- else -%}
+    {%- capture button_content -%}{{ 'product.general.sold_out_button' | t }}{%- endcapture -%}
+    {%- assign button_disabled = true -%}
+  {%- endif -%}
+
+
+  <div class="v-stack gap-4">
+    {%- if recipient_feature_active -%}
+      <gift-card-recipient class="gift-card-recipient v-stack gap-3">
+        {%- assign checkbox_label = 'gift_card.recipient.checkbox' | t -%}
+        {%- render 'checkbox', label: checkbox_label, name: 'properties[__shopify_send_gift_card_to_recipient]' -%}
+
+        <div class="gift-card-recipient__fields" hidden>
+          <div class="fieldset">
+            {%- liquid
+              assign recipient_email_label = 'gift_card.recipient.email_label' | t
+              render 'input', type: 'email', label: recipient_email_label, name: 'properties[Recipient email]', value: form.email, required: true, maxlength: 138
+
+              assign recipient_name_label = 'gift_card.recipient.name_label' | t
+              render 'input', label: recipient_name_label, name: 'properties[Recipient name]', value: form.name
+
+              assign send_on_label = 'gift_card.recipient.send_on_label' | t
+              render 'input', type: 'date', label: send_on_label, name: 'properties[Send on]', value: form.send_on, pattern: '\d{4}-\d{2}-\d{2}'
+              render 'input', type: 'hidden', name: 'properties[__shopify_offset]'
+
+              assign message_label = 'gift_card.recipient.message_label' | t
+              render 'input', label: message_label, name: 'properties[Message]', value: form.message, multiline: 3, maxlength: 200, show_max_characters_count: true
+            -%}
+          </div>
+        </div>
+      </gift-card-recipient>
+    {%- endif -%}
+
+    <buy-buttons class="buy-buttons {% if show_payment_button %}buy-buttons--multiple{% endif %}" template="{{ product.template_suffix | escape }}" form="{{ form_id }}">
+      {%- render 'button', content: button_content, type: 'submit', size: button_size, disabled: button_disabled, secondary: show_payment_button, subdued: button_disabled, background: atc_button_background, text_color: atc_button_text_color -%}
+
+      {%- if show_payment_button -%}
+        {{- form | payment_button -}}
+
+        <style>
+          #{{ form_id }} .shopify-payment-button {
+            {%- unless product.selected_or_first_available_variant.available -%}
+              display: none;
+            {%- endunless -%}
+
+            {%- if payment_button_background != blank and payment_button_background != 'rgba(0,0,0,0)' -%}
+              --button-background: {{ payment_button_background.rgb }};
+            {%- endif -%}
+
+            {%- if payment_button_text_color != blank and payment_button_text_color != 'rgba(0,0,0,0)' -%}
+              --button-text-color: {{ payment_button_text_color.rgb }};
+            {%- endif -%}
+          }
+        </style>
+      {%- endif -%}
+    </buy-buttons>
+  </div>
+{%- endform -%}
+<style>
+  .dual-upload-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    margin: 30px 0;
+    max-width: 1000px;
+  }
+  
+  .upload-form {
+    background: #f8f9fa;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    border: 1px solid #e9ecef;
+  }
+  
+  .form-title {
+    margin: 0 0 20px 0;
+    color: #2c3e50;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+  }
+  
+  .upload-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+  }
+  
+  .upload-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  }
+  
+  .upload-button:before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    z-index: -1;
+    border-radius: 10px;
+    animation: borderAnimation 2s linear infinite;
+  }
+  
+  .checking-message {
+    display: flex;
+    align-items: center;
+    margin: 20px 0;
+    color: #555;
+    font-size: 14px;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(102, 126, 234, 0.2);
+    border-top-color: #667eea;
+    border-radius: 50%;
+    margin-right: 12px;
+    animation: spin 1s linear infinite;
+  }
+  
+  .status-text {
+    transition: opacity 0.3s ease;
+    font-weight: 500;
+  }
+  
+  .preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+  }
+  
+  .preview-item {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    animation: fadeIn 0.5s ease;
+    aspect-ratio: 1/1;
+    transition: transform 0.3s ease;
+  }
+  
+  .preview-item:hover {
+    transform: scale(1.05);
+  }
+  
+  .preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  
+  .quality-tag {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    background: rgba(76, 175, 80, 0.95);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+    backdrop-filter: blur(2px);
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  @keyframes borderAnimation {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .dual-upload-container {
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    
+    .upload-form {
+      padding: 20px;
+    }
+    
+    .preview-grid {
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    }
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize both forms
+  initializeUploadForm('image-upload-1', 'preview-grid-1');
+  initializeUploadForm('image-upload-2', 'preview-grid-2');
+  
+  function initializeUploadForm(uploadId, previewId) {
+    const uploadInput = document.getElementById(uploadId);
+    const checkingMessage = uploadInput.closest('.upload-form').querySelector('.checking-message');
+    const statusText = checkingMessage.querySelector('.status-text');
+    const previewGrid = document.getElementById(previewId);
+    
+    uploadInput.addEventListener('change', function(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        // Clear previous previews
+        previewGrid.innerHTML = '';
+        previewGrid.style.display = 'none';
+        
+        // Show checking message
+        checkingMessage.style.display = 'flex';
+        startMultiPhaseLoading(e.target.files, statusText, previewGrid, checkingMessage);
+      }
+    });
+  }
+  
+  function startMultiPhaseLoading(files, statusText, previewGrid, checkingMessage) {
+    // Phase 1 (0-3s): Show "abc"
+    statusText.textContent = `Checking ${files.length} images...`;
+    
+    // Phase 2 (3-6s): Show "abcde"
+    setTimeout(() => {
+      statusText.textContent = `Processing ${files.length} images...`;
+    }, 3000);
+    
+    // Phase 3 (6-8s): Show "abcfsdfsdf"
+    setTimeout(() => {
+      statusText.textContent = `Finalizing ${files.length} images...`;
+    }, 6000);
+    
+    // Complete after 8s
+    setTimeout(() => {
+      checkingMessage.style.display = 'none';
+      processUploads(files, previewGrid);
+    }, 8000);
+  }
+  
+  function processUploads(files, previewGrid) {
+    previewGrid.style.display = 'grid';
+    
+    Array.from(files).forEach((file, index) => {
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        const previewItem = document.createElement('div');
+        previewItem.className = 'preview-item';
+        
+        const img = document.createElement('img');
+        img.className = 'preview-image';
+        img.src = e.target.result;
+        
+        const qualityTag = document.createElement('div');
+        qualityTag.className = 'quality-tag';
+        qualityTag.innerHTML = '✓ Good quality';
+        
+        previewItem.appendChild(img);
+        previewItem.appendChild(qualityTag);
+        previewGrid.appendChild(previewItem);
+        
+        // Add slight delay between each image appearance
+        setTimeout(() => {
+          previewItem.style.animation = 'fadeIn 0.5s ease forwards';
+        }, index * 100);
+      };
+      
+      reader.readAsDataURL(file);
+    });
+  }
+});
+</script>
