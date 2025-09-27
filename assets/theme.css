@@ -10170,3 +10170,6 @@ review-slider {
     margin-top: 1px !important;
     margin-bottom: 1px !important;
 
+.buy-buttons .d-none {
+  display: none;
+}
