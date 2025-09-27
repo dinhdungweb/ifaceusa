@@ -10171,5 +10171,5 @@ review-slider {
     margin-bottom: 1px !important;
 
 button.button.button--xl.button--secondary.d-none {
-    display: none;
+    display: none!important;
 }
