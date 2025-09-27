@@ -120,7 +120,7 @@
         "enable_video_looping": true,
         "enable_image_zoom": true,
         "max_image_zoom_level": 3,
-        "show_addtocart_btn": true,
+        "show_addtocart_btn": false,
         "show_upload_1": false,
         "upload_label_1": "Photo 1",
         "show_upload_2": false,
